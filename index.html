@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>walikancrypt</title>
+  <style>
+    :root {
+      --bg: #0f172a;      /* slate-900 */
+      --card: #111827;    /* gray-900 */
+      --muted: #94a3b8;   /* slate-400 */
+      --text: #e5e7eb;    /* gray-200 */
+      --accent: #22d3ee;  /* cyan-400 */
+      --accent-2: #7c3aed;/* violet-600 */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: linear-gradient(120deg, var(--bg), #0b1024 40%, #101038);
+      color: var(--text);
+      min-height: 100svh; display: grid; place-items: center; padding: 24px;
+    }
+    .app {
+      width: min(980px, 100%);
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid rgba(148,163,184,0.2);
+      border-radius: 16px; padding: 20px; backdrop-filter: blur(6px);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    h1 { margin: 0 0 6px; font-weight: 800; letter-spacing: 0.2px; }
+    p.sub { margin: 0 0 18px; color: var(--muted); }
+    .row { display: grid; gap: 14px; grid-template-columns: 1fr; }
+    @media (min-width: 900px) { .row { grid-template-columns: 1fr 1fr; } }
+    .field { display: flex; flex-direction: column; gap: 8px; }
+    .field label { font-size: 0.95rem; color: var(--muted); }
+    textarea, input[type="text"] {
+      width: 100%; min-height: 200px; resize: vertical; border-radius: 12px; border: 1px solid rgba(148,163,184,0.25);
+      background: #0b1324; color: var(--text); padding: 14px 14px; font-size: 1rem; line-height: 1.5; outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15); }
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+    button {
+      border: none; padding: 10px 14px; border-radius: 999px; cursor: pointer; font-weight: 700; letter-spacing: 0.25px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #0b1020;
+      box-shadow: 0 6px 16px rgba(124,58,237,0.35);
+    }
+    button.secondary { background: transparent; color: var(--text); border: 1px solid rgba(148,163,184,0.35); box-shadow: none; }
+    .hint { color: var(--muted); font-size: 0.9rem; margin-top: 10px; }
+    .footer { margin-top: 14px; font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    code { background: rgba(148,163,184,0.12); padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Word-Reverser</h1>
+    <p class="sub">Encrypt by reversing the letters in <em>each word</em> while keeping the word order.</p>
+
+    <div class="row">
+      <div class="field">
+        <label for="plain">Input (plaintext)</label>
+        <textarea id="plain" placeholder="Tulis teks di sini...">Mohon maaf atas semua kesalahan</textarea>
+        <div class="controls">
+          <button id="encryptBtn" type="button">Encrypt</button>
+          <button id="clearBtn" class="secondary" type="button">Clear</button>
+          <button id="sampleBtn" class="secondary" type="button">Use example</button>
+        </div>
+        <div class="hint">Rule: Only reverse letters of each word; keep spaces and punctuation as-is.</div>
+      </div>
+
+      <div class="field">
+        <label for="cipher">Output (encrypted)</label>
+        <textarea id="cipher" readonly placeholder="Hasil akan muncul di sini..."></textarea>
+        <div class="controls">
+          <button id="copyBtn" type="button">Copy output</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Example: <code>"Mohon maaf atas semua kesalahan"</code> → <code>"Nohom faam sata aumes nahalasek"</code>
+    </div>
+  </main>
+
+  <script>
+    // Reverse a single word while attempting to preserve simple casing patterns
+    function reverseWordPreserveSimpleCase(word) {
+      const reversed = [...word].reverse().join("");
+
+      // Heuristics for casing
+      if (/^[A-Z][a-z]+$/.test(word)) {
+        // Capitalized (Title case like "Hello")
+        const low = reversed.toLowerCase();
+        return low.charAt(0).toUpperCase() + low.slice(1);
+      }
+      if (/^[A-Z]+$/.test(word)) {
+        // ALL CAPS
+        return reversed.toUpperCase();
+      }
+      if (/^[a-z]+$/.test(word)) {
+        // all lowercase
+        return reversed;
+      }
+      // Mixed or contains digits/symbols: just reverse as-is
+      return reversed;
+    }
+
+    // Process text: reverse only alphabetic words, keep everything else (spaces, punctuation) unchanged
+    function encrypt(text) {
+      // Tokenize to words vs non-words; support basic Latin plus extended Latin ranges
+      const regex = /([A-Za-zÀ-ÖØ-öø-ÿ]+)|([^A-Za-zÀ-ÖØ-öø-ÿ]+)/g;
+      const out = [];
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        const [token, letters, nonLetters] = match;
+        if (letters) {
+          out.push(reverseWordPreserveSimpleCase(letters));
+        } else {
+          out.push(nonLetters);
+        }
+      }
+      return out.join("");
+    }
+
+    const $ = (sel) => document.querySelector(sel);
+    const plain = $('#plain');
+    const cipher = $('#cipher');
+
+    function run() {
+      cipher.value = encrypt(plain.value);
+    }
+
+    $('#encryptBtn').addEventListener('click', run);
+    $('#clearBtn').addEventListener('click', () => { plain.value = ''; run(); plain.focus(); });
+    $('#sampleBtn').addEventListener('click', () => {
+      plain.value = 'Mohon maaf atas semua kesalahan';
+      run();
+    });
+    $('#copyBtn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(cipher.value);
+        // Optional: brief visual feedback via title attribute
+        const old = document.title;
+        document.title = 'Copied!';
+        setTimeout(() => (document.title = old), 600);
+      } catch (e) {
+        alert('Copy failed. You can select and copy manually.');
+      }
+    });
+
+    // Live update while typing
+    plain.addEventListener('input', run);
+
+    // Initial render
+    run();
+  </script>
+</body>
+</html>
