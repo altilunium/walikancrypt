@@ -84,20 +84,21 @@
 
   <script>
     // Reverse a single word while attempting to preserve simple casing patterns
+    // Reverse a single word while attempting to preserve simple casing, including accented characters
     function reverseWordPreserveSimpleCase(word) {
       const reversed = [...word].reverse().join("");
 
-      // Heuristics for casing
-      if (/^[A-Z][a-z]+$/.test(word)) {
-        // Capitalized (Title case like "Hello")
+      // Heuristics for casing with Unicode awareness
+      if (/^\p{Lu}\p{Ll}+$/u.test(word)) {
+        // Title case (first uppercase, rest lowercase)
         const low = reversed.toLowerCase();
         return low.charAt(0).toUpperCase() + low.slice(1);
       }
-      if (/^[A-Z]+$/.test(word)) {
+      if (/^\p{Lu}+$/u.test(word)) {
         // ALL CAPS
         return reversed.toUpperCase();
       }
-      if (/^[a-z]+$/.test(word)) {
+      if (/^\p{Ll}+$/u.test(word)) {
         // all lowercase
         return reversed;
       }
@@ -107,17 +108,21 @@
 
     // Process text: reverse only alphabetic words, keep everything else (spaces, punctuation) unchanged
     function encrypt(text) {
-      // Tokenize to words vs non-words; support basic Latin plus extended Latin ranges
-      const regex = /([A-Za-zÀ-ÖØ-öø-ÿ]+)|([^A-Za-zÀ-ÖØ-öø-ÿ]+)/g;
+      // Tokenize to words vs non-words; support Unicode letters
+      const regex = /(\p{L}+)/gu;
+      let lastIndex = 0;
       const out = [];
-      let match;
-      while ((match = regex.exec(text)) !== null) {
-        const [token, letters, nonLetters] = match;
-        if (letters) {
-          out.push(reverseWordPreserveSimpleCase(letters));
-        } else {
-          out.push(nonLetters);
+      for (const match of text.matchAll(regex)) {
+        const [letters] = match;
+        const idx = match.index;
+        if (idx > lastIndex) {
+          out.push(text.slice(lastIndex, idx));
         }
+        out.push(reverseWordPreserveSimpleCase(letters));
+        lastIndex = idx + letters.length;
+      }
+      if (lastIndex < text.length) {
+        out.push(text.slice(lastIndex));
       }
       return out.join("");
     }
